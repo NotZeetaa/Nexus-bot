@@ -78,8 +78,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if BOT_USERNAME in text:
             new_text: str = text.replace(BOT_USERNAME, '').strip()
             await handle_response(update, new_text, text)
-    else:
-        await handle_response(update, text, text)
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error {context.error}')
