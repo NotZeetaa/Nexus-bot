@@ -4,6 +4,10 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 import os
 from datetime import datetime
+import re
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # Use environment variables for sensitive information
 TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
@@ -21,15 +25,43 @@ async def clone_repository():
     repo_name = REPO_URL.split('/')[-1].split('.')[0]
     os.chdir(repo_name)
 
-async def handle_git_operations(device: str):
+async def replace_string_in_setup(device: str):
+    pattern = re.compile(r'bash build\.sh null {}\s+lto'.format(re.escape(device)))
+    
+    with open('setup.sh', 'r') as file:
+        content = file.read()
+        if pattern.search(content):
+            content = pattern.sub(f'bash build.sh null {device} null', content)
+            normal = True
+        else:
+            logging.info('No')
+            normal = False
+
+    with open('setup.sh', 'w') as file:
+        file.write(content)
+    
+    return normal   
+
+async def handle_git_operations(device: str, command: str):
     await clone_repository()
     os.system(f'git switch {device}')
     os.system('git fetch origin')
     os.system('git pull')
-    os.system('git commit -s -m "Automatic run" --allow-empty')
+    normal = await replace_string_in_setup(device)
+    if command == 'lto':
+        os.system(f'sed -i "s/bash build.sh null {device} null/bash build.sh null {device} lto/g" setup.sh')
+        os.system('git add .')
+        os.system('git commit -s -m "LTO build"')
+    else:
+        if normal:
+            os.system('git add .')
+            os.system('git commit -s -m "Normal build"')
+            os.system('git push')
+        else:
+            os.system('git commit -s -m "Automatic run" --allow-empty') 
     os.system('git push')
 
-async def handle_response(update: Update, processed: str, original_text: str):
+async def handle_response(update: Update, command: str, original_text: str, arguments: list):
     device_mapping = {
         'alioth': 'alioth device',
         'apollo': 'apollo device',
@@ -40,22 +72,33 @@ async def handle_response(update: Update, processed: str, original_text: str):
     now = datetime.now()
     date_time = now.strftime("%H:%M:%S")
 
-    if processed in device_mapping:
-        device = device_mapping[processed]
-        await handle_git_operations(processed)
+    if command in device_mapping:
+        device = device_mapping[command]
+        await handle_git_operations(command, device)
         await update.message.reply_text(f'[{date_time}] Build Started to {device}!')
 
-    elif processed == 'all':
+    elif command == 'all':
         await handle_git_operations('main')
         await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
 
-    elif processed == 'gm':
+    elif command == 'gm':
         await update.message.reply_text(f'[{date_time}] Let me sleep!')
 
-    elif processed == 'gn':
+    elif command == 'gn':
         await update.message.reply_text(f'[{date_time}] Good night!')
+        
+    elif command == 'lto':
+        if arguments:
+            device = arguments[0]
+            if device in device_mapping:
+                await handle_git_operations(device, command)
+                await update.message.reply_text(f'[{date_time}] LTO build for {device}!')
+            else:
+                await update.message.reply_text(f'[{date_time}] Invalid device argument for LTO command.')
+        else:
+            await update.message.reply_text(f'[{date_time}] Missing device argument for LTO command.')
 
-    elif processed == 'server':
+    elif command == 'server':
         # Modify the server response to handle both Windows and Linux
         platform = os.name  # 'posix' for Linux, 'nt' for Windows
         if platform == 'posix':
@@ -74,21 +117,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
 
-    if message_type == 'supergroup':
-        if BOT_USERNAME in text:
-            new_text: str = text.replace(BOT_USERNAME, '').strip()
-            await handle_response(update, new_text, text)
+    if message_type == 'supergroup' and BOT_USERNAME in text:
+        # Extract command and arguments
+        parts = text.split()
+        command = parts[1].lower() if len(parts) > 1 else None
+        arguments = parts[2:] if len(parts) > 2 else []
+
+        if command:
+            await handle_response(update, command, text, arguments)
+
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f'Update {update} caused error {context.error}')
+    logging.info(f'Update {update} caused error {context.error}')
 
 if __name__ == '__main__':
-    print('Starting bot...')
+    logging.info('Starting bot...')
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_error_handler(error)
 
-    print('Polling...')
+    logging.info('Polling...')
     app.run_polling(poll_interval=3)
