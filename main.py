@@ -24,6 +24,8 @@ async def clone_repository():
 async def handle_git_operations(device: str):
     await clone_repository()
     os.system(f'git switch {device}')
+    os.system('git fetch origin')
+    os.system('git pull')
     os.system('git commit -s -m "Automatic run" --allow-empty')
     os.system('git push')
 
