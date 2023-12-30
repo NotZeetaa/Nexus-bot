@@ -10,8 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      token: ${{ secrets.TOKEN }}
-      username: ${{ secrets.USERNAME }}
+      TELEGRAM_TOKEN: ${{ secrets.TOKEN }}
+      BOT_USERNAME: ${{ secrets.USERNAME }}
+      GT_TOKEN: ${{ secrets.GT_TOKEN }}
 
     steps:
     - name: Checkout Repository
@@ -26,9 +27,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+      
+    - name: Git Operations
+      run: |
+        git config --global user.email "rodrigo2005contente@gmail.com"
+        git config --global user.name "NotZeetaa"
 
     - name: Run Python Script
       run: python main.py
-      env:
-        TELEGRAM_TOKEN: ${{ secrets.TOKEN }}
-        BOT_USERNAME: ${{ secrets.USERNAME }}

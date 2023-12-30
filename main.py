@@ -6,11 +6,26 @@ import os
 from datetime import datetime
 
 # Use environment variables for sensitive information
-TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
 BOT_USERNAME: Final = os.getenv("BOT_USERNAME")
+GT_TOKEN: Final = os.getenv("GT_TOKEN")
+REPO_OWNER: Final = "NotZeetaa"
+REPO_NAME: Final = "cirrus-ci"
+REPO_URL: Final = f"https://{GT_TOKEN}@github.com/{REPO_OWNER}/{REPO_NAME}"
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Hello! Thanks for chatting with me!')
+
+async def clone_repository():
+    os.system(f'git clone {REPO_URL}')
+    repo_name = REPO_URL.split('/')[-1].split('.')[0]
+    os.chdir(repo_name)
+
+async def handle_git_operations(device: str):
+    await clone_repository()
+    os.system(f'git switch {device}')
+    os.system('git commit -s -m "Automatic run" --allow-empty')
+    os.system('git push')
 
 async def handle_response(update: Update, processed: str, original_text: str):
     device_mapping = {
@@ -25,15 +40,11 @@ async def handle_response(update: Update, processed: str, original_text: str):
 
     if processed in device_mapping:
         device = device_mapping[processed]
-        os.system(f'git switch {processed}')
-        os.system('git commit -s -m "Automatic run" --allow-empty')
-        os.system('git push')
+        await handle_git_operations(processed)
         await update.message.reply_text(f'[{date_time}] Build Started to {device}!')
 
     elif processed == 'all':
-        os.system('git switch main')
-        os.system('git commit -s -m "Automatic run" --allow-empty')
-        os.system('git push')
+        await handle_git_operations('main')
         await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
 
     elif processed == 'gm':
@@ -73,7 +84,7 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     print('Starting bot...')
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
