@@ -5,9 +5,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import os
 from datetime import datetime
 import re
-import logging
-
-logging.basicConfig(level=logging.INFO)
 
 # Use environment variables for sensitive information
 TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
@@ -34,7 +31,6 @@ async def replace_string_in_setup(device: str):
             content = pattern.sub(f'bash build.sh null {device} null', content)
             normal = True
         else:
-            logging.info('No')
             normal = False
 
     with open('setup.sh', 'w') as file:
@@ -128,15 +124,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info(f'Update {update} caused error {context.error}')
+    print(f'Update {update} caused error {context.error}')
 
 if __name__ == '__main__':
-    logging.info('Starting bot...')
+    print('Starting bot...')
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_error_handler(error)
 
-    logging.info('Polling...')
+    print('Polling...')
     app.run_polling(poll_interval=3)
