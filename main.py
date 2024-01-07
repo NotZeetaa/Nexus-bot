@@ -21,6 +21,17 @@ async def clone_repository():
     os.system(f'git clone {REPO_URL}')
     repo_name = REPO_URL.split('/')[-1].split('.')[0]
     os.chdir(repo_name)
+    
+async def replace_branch(branch: str):
+    with open('setup.sh', 'r') as file:
+        content = file.read()
+
+    # Use regular expression to find and replace the branch name
+    pattern = re.compile(r'(-b\s+)(\S+)')
+    updated_content = pattern.sub(r'\1' + branch, content)
+
+    with open('setup.sh', 'w') as file:
+        file.write(updated_content)
 
 async def replace_string_in_setup(device: str):
     pattern = re.compile(r'bash build\.sh null {}\s+lto'.format(re.escape(device)))
@@ -38,11 +49,12 @@ async def replace_string_in_setup(device: str):
     
     return normal   
 
-async def handle_git_operations(device: str, command: str):
+async def handle_git_operations(device: str, command: str, branch: str):
     await clone_repository()
     os.system(f'git switch {device}')
     os.system('git fetch origin')
     os.system('git pull')
+    await replace_branch(branch)
     normal = await replace_string_in_setup(device)
     if command == 'lto':
         os.system(f'sed -i "s/bash build.sh null {device} null/bash build.sh null {device} lto/g" setup.sh')
@@ -69,9 +81,10 @@ async def handle_response(update: Update, command: str, original_text: str, argu
     date_time = now.strftime("%H:%M:%S")
 
     if command in device_mapping:
-        device = device_mapping[command]
-        await handle_git_operations(command, device)
-        await update.message.reply_text(f'[{date_time}] Build Started to {device}!')
+        device = command
+        branch = arguments[0] if arguments else 'sched-4'
+        await handle_git_operations(device, command, branch)
+        await update.message.reply_text(f'[{date_time}] Build for {command} on branch {branch}!')
 
     elif command == 'all':
         await handle_git_operations('main')
@@ -84,15 +97,24 @@ async def handle_response(update: Update, command: str, original_text: str, argu
         await update.message.reply_text(f'[{date_time}] Good night!')
         
     elif command == 'lto':
-        if arguments:
+        if len(arguments) >= 1:
             device = arguments[0]
+            branch = arguments[1] if len(arguments) >= 2 else 'sched-4'
+    
             if device in device_mapping:
-                await handle_git_operations(device, command)
-                await update.message.reply_text(f'[{date_time}] LTO build for {device}!')
+                await handle_git_operations(device, command, branch)
+                await update.message.reply_text(f'[{date_time}] LTO build for {device} on branch {branch}!')
             else:
                 await update.message.reply_text(f'[{date_time}] Invalid device argument for LTO command.')
         else:
-            await update.message.reply_text(f'[{date_time}] Missing device argument for LTO command.')
+            branch = 'sched-4'
+            device = arguments[0] if arguments else None
+    
+            if device in device_mapping:
+                await handle_git_operations(device, command, branch)
+                await update.message.reply_text(f'[{date_time}] LTO build for {device} on branch {branch}!')
+            else:
+                await update.message.reply_text(f'[{date_time}] Missing device argument for LTO command.')
 
     elif command == 'server':
         # Modify the server response to handle both Windows and Linux
