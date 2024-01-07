@@ -47,7 +47,7 @@ async def handle_git_operations(device: str, command: str):
     if command == 'lto':
         os.system(f'sed -i "s/bash build.sh null {device} null/bash build.sh null {device} lto/g" setup.sh')
         os.system('git add .')
-        os.system('git commit -s -m "LTO build"')
+        os.system('git commit -s -m "LTO build" --allow-empty')
     else:
         if normal:
             os.system('git add .')
