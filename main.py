@@ -64,8 +64,8 @@ async def handle_git_operations(device: str, command: str, branch: str):
         if normal:
             os.system('git add .')
             os.system('git commit -s -m "Normal build"')
-            os.system('git push')
         else:
+            os.system('git add .')
             os.system('git commit -s -m "Automatic run" --allow-empty') 
     os.system('git push')
 
