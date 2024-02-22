@@ -135,15 +135,67 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
 
-    if message_type == 'supergroup' and BOT_USERNAME in text:
+    if message_type == 'supergroup':
         # Extract command and arguments
         parts = text.split()
-        command = parts[1].lower() if len(parts) > 1 else None
-        arguments = parts[2:] if len(parts) > 2 else []
+        if parts:
+            command = parts[0].lower()  # Extract command (e.g., '/build', '/gm', etc.)
+            arguments = parts[1:]       # Extract arguments (if any)
+            
+            if command == '/build':
+                if len(arguments) == 3 and arguments[1].lower() == 'lto':
+                    await handle_lto_build_command(update, arguments)
+                elif len(arguments) == 2:
+                    await handle_build_command(update, arguments)
+                else:
+                    await update.message.reply_text('Invalid command format. Please use /build (device) (lto) (branch) or /build (device) (branch).')
+            elif command == '/gm':
+                await handle_generic_command(update, 'gm')
+            elif command == '/gn':
+                await handle_generic_command(update, 'gn')
+            elif command == '/server':
+                await handle_generic_command(update, 'server')
+            elif command == '/all':
+                await handle_generic_command(update, 'all')
 
-        if command:
-            await handle_response(update, command, text, arguments)
+async def handle_build_command(update: Update, arguments: list):
+    device = arguments[0]
+    branch = arguments[1]
+    
+    await handle_git_operations(device, 'build', branch)
+    now = datetime.now()
+    date_time = now.strftime("%H:%M:%S")
+    await update.message.reply_text(f'[{date_time}] Build for {device} on branch {branch}!')
 
+async def handle_lto_build_command(update: Update, arguments: list):
+    device = arguments[0]
+    branch = arguments[2]
+    
+    await handle_git_operations(device, 'lto', branch)
+    now = datetime.now()
+    date_time = now.strftime("%H:%M:%S")
+    await update.message.reply_text(f'[{date_time}] LTO build for {device} on branch {branch}!')
+
+async def handle_generic_command(update: Update, command: str):
+    now = datetime.now()
+    date_time = now.strftime("%H:%M:%S")
+    
+    if command == 'gm':
+        await update.message.reply_text(f'[{date_time}] Let me sleep!')
+    elif command == 'gn':
+        await update.message.reply_text(f'[{date_time}] Good night!')
+    elif command == 'server':
+        # Modify the server response to handle both Windows and Linux
+        platform = os.name  # 'posix' for Linux, 'nt' for Windows
+        if platform == 'posix':
+            await update.message.reply_text(f'[{date_time}] Server is running on my Linux machine!')
+        elif platform == 'nt':
+            await update.message.reply_text(f'[{date_time}] Server is running on my Windows machine!')
+        else:
+            await update.message.reply_text(f'[{date_time}] Server information not available.')
+    elif command == 'all':
+        await handle_git_operations('main')
+        await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error {context.error}')
