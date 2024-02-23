@@ -15,6 +15,7 @@ jobs:
       TELEGRAM_TOKEN: ${{ secrets.TOKEN }}
       BOT_USERNAME: ${{ secrets.USERNAME }}
       GT_TOKEN: ${{ secrets.GT_TOKEN }}
+      TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
 
     steps:
     - name: Checkout Repository

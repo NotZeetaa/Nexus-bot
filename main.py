@@ -6,10 +6,17 @@ import os
 from datetime import datetime
 import re
 
+import logging
+
+# Configure the logging format and level
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+
 # Use environment variables for sensitive information
 TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
 BOT_USERNAME: Final = os.getenv("BOT_USERNAME")
 GT_TOKEN: Final = os.getenv("GT_TOKEN")
+TELEGRAM_USER_ID: Final = os.getenv("TELEGRAM_USER_ID")
 REPO_OWNER: Final = "NotZeetaa"
 REPO_NAME: Final = "cirrus-ci"
 REPO_URL: Final = f"https://{GT_TOKEN}@github.com/{REPO_OWNER}/{REPO_NAME}"
@@ -129,7 +136,33 @@ async def handle_response(update: Update, command: str, original_text: str, argu
     else:
         await update.message.reply_text(f'[{date_time}] No device found!')
 
+# Define a global variable to track the locked state
+is_locked = False
+
+async def handle_lock_bot_command(update: Update):
+    global is_locked
+    logging.info(f'The value of the variable is: {update.effective_user.id}')
+    # Check if the user ID matches the one mentioned in the GitHub secret
+    if str(update.effective_user.id) == TELEGRAM_USER_ID:
+        is_locked = True
+        await update.message.reply_text('Commands are now locked.')
+    else:
+        await update.message.reply_text('You are not authorized to use this command.')
+
+async def handle_unlock_bot_command(update: Update):
+    global is_locked
+    # Check if the user ID matches the one mentioned in the GitHub secret
+    logging.info(f'The value of the variable is: {update.effective_user.id}')
+    if str(update.effective_user.id) == TELEGRAM_USER_ID:
+        is_locked = False
+        await update.message.reply_text('Commands are now unlocked.')
+    else:
+        await update.message.reply_text('You are not authorized to use this command.')
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global is_locked
+
     message_type: str = update.message.chat.type
     text: str = update.message.text
 
@@ -141,7 +174,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if parts:
             command = parts[0].lower()  # Extract command (e.g., '/build', '/gm', etc.)
             arguments = parts[1:]       # Extract arguments (if any)
-            
+
+            # Check if the command is one of the restricted commands and if it's locked
+            if is_locked and command in ['/lock-bot', '/unlock-bot', '/build'] and str(update.effective_user.id) != TELEGRAM_USER_ID:
+                await update.message.reply_text('Commands are currently locked.')
+                return
+
+            # Process the commands
             if command == '/build':
                 if len(arguments) == 3 and arguments[1].lower() == 'lto':
                     await handle_lto_build_command(update, arguments)
@@ -157,6 +196,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await handle_generic_command(update, 'server')
             elif command == '/all':
                 await handle_generic_command(update, 'all')
+            elif command == '/lock-bot':
+                await handle_lock_bot_command(update)
+            elif command == '/unlock-bot':
+                await handle_unlock_bot_command(update)
+
+async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f'Update {update} caused error {context.error}')
 
 async def handle_build_command(update: Update, arguments: list):
     device = arguments[0]
@@ -196,9 +242,6 @@ async def handle_generic_command(update: Update, command: str):
     elif command == 'all':
         await handle_git_operations('main')
         await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
-
-async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f'Update {update} caused error {context.error}')
 
 if __name__ == '__main__':
     print('Starting bot...')
