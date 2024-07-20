@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import os
 from datetime import datetime
 import re
+import psutil
 
 import logging
 
@@ -91,11 +92,11 @@ async def handle_response(update: Update, command: str, original_text: str, argu
         device = command
         branch = arguments[0] if arguments else 'sched-4'
         await handle_git_operations(device, command, branch)
-        await update.message.reply_text(f'[{date_time}] Build for {command} on branch {branch}!')
+        await update.message.reply_text(f'[{date_time}] ⚒️ Build for {command} on branch {branch}!')
 
     elif command == 'all':
         await handle_git_operations('main')
-        await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
+        await update.message.reply_text(f'[{date_time}] ⚒️ Build Started to all devices!')
 
     elif command == 'gm':
         await update.message.reply_text(f'[{date_time}] Let me sleep!')
@@ -110,7 +111,7 @@ async def handle_response(update: Update, command: str, original_text: str, argu
     
             if device in device_mapping:
                 await handle_git_operations(device, command, branch)
-                await update.message.reply_text(f'[{date_time}] LTO build for {device} on branch {branch}!')
+                await update.message.reply_text(f'[{date_time}] ⚒️ LTO build for {device} on branch {branch}!')
             else:
                 await update.message.reply_text(f'[{date_time}] Invalid device argument for LTO command.')
         else:
@@ -119,7 +120,7 @@ async def handle_response(update: Update, command: str, original_text: str, argu
     
             if device in device_mapping:
                 await handle_git_operations(device, command, branch)
-                await update.message.reply_text(f'[{date_time}] LTO build for {device} on branch {branch}!')
+                await update.message.reply_text(f'[{date_time}] ⚒️ LTO build for {device} on branch {branch}!')
             else:
                 await update.message.reply_text(f'[{date_time}] Missing device argument for LTO command.')
 
@@ -231,17 +232,31 @@ async def handle_generic_command(update: Update, command: str):
     elif command == 'gn':
         await update.message.reply_text(f'[{date_time}] Good night!')
     elif command == 'server':
-        # Modify the server response to handle both Windows and Linux
-        platform = os.name  # 'posix' for Linux, 'nt' for Windows
-        if platform == 'posix':
-            await update.message.reply_text(f'[{date_time}] Server is running on my Linux machine!')
-        elif platform == 'nt':
-            await update.message.reply_text(f'[{date_time}] Server is running on my Windows machine!')
-        else:
-            await update.message.reply_text(f'[{date_time}] Server information not available.')
+        await handle_server_command(update, date_time)
     elif command == 'all':
         await handle_git_operations('main')
         await update.message.reply_text(f'[{date_time}] Build Started to all devices!')
+
+async def handle_server_command(update: Update, date_time: str):
+    platform = os.name  # 'posix' for Linux, 'nt' for Windows
+    cpu_usage = psutil.cpu_percent(interval=1)
+    ram_usage = psutil.virtual_memory().percent
+    cpu_cores = psutil.cpu_count()
+
+    if platform == 'posix':
+        await update.message.reply_text(f'[{date_time}] Server is running on my Linux machine!\n\n'
+                                        f'Github actions usage: \n'
+                                        f'⚙️ CPU Usage: {cpu_usage}%\n'
+                                        f'⚙️ RAM Usage: {ram_usage}%\n'
+                                        f'⚙️ CPU Cores: {cpu_cores}')
+    elif platform == 'nt':
+        await update.message.reply_text(f'[{date_time}] Server is running on my Windows machine!\n\n'
+                                        f'Github actions usage: \n'
+                                        f'⚙️ CPU Usage: {cpu_usage}%\n'
+                                        f'⚙️ RAM Usage: {ram_usage}%\n'
+                                        f'⚙️ CPU Cores: {cpu_cores}')
+    else:
+        await update.message.reply_text(f'[{date_time}] Server information not available.')
 
 if __name__ == '__main__':
     print('Starting bot...')
