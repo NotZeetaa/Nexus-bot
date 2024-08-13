@@ -243,21 +243,12 @@ async def handle_server_command(update: Update, date_time: str):
     ram_usage = psutil.virtual_memory().percent
     cpu_cores = psutil.cpu_count()
 
-    if platform == 'posix':
-        await update.message.reply_text(f'[{date_time}] Server is running on my Linux machine!\n\n'
-                                        f'Github actions usage: \n'
-                                        f'⚙️ CPU Usage: {cpu_usage}%\n'
-                                        f'⚙️ RAM Usage: {ram_usage}%\n'
-                                        f'⚙️ CPU Cores: {cpu_cores}')
-    elif platform == 'nt':
-        await update.message.reply_text(f'[{date_time}] Server is running on my Windows machine!\n\n'
-                                        f'Github actions usage: \n'
-                                        f'⚙️ CPU Usage: {cpu_usage}%\n'
-                                        f'⚙️ RAM Usage: {ram_usage}%\n'
-                                        f'⚙️ CPU Cores: {cpu_cores}')
-    else:
-        await update.message.reply_text(f'[{date_time}] Server information not available.')
-
+    await update.message.reply_text(f'[{date_time}] Server is running on my {platform} machine!\n\n'
+                                    f'Github actions usage: \n'
+                                    f'⚙️ CPU Usage: {cpu_usage}%\n'
+                                    f'⚙️ RAM Usage: {ram_usage}%\n'
+                                    f'⚙️ CPU Cores: {cpu_cores}')
+    
 if __name__ == '__main__':
     print('Starting bot...')
     app = Application.builder().token(TELEGRAM_TOKEN).build()
